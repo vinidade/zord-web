@@ -56,6 +56,9 @@ export default function EstoquePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [popover, setPopover] = useState<{ sku: string; type: "preco" | "estoque" | "fornecedor" | "cod" | "obs" } | null>(null);
+  const [draftPreco, setDraftPreco] = useState<Record<string, string>>({});
+  const [draftMov, setDraftMov] = useState<Record<string, { quantidade: string; custo: string }>>({});
 
   useEffect(() => {
     if (!loading && !session) {
@@ -512,16 +515,15 @@ export default function EstoquePage() {
             <table className="sheet">
               <thead>
                 <tr>
-                  <th>Imagem</th>
-                  <th>SKU</th>
-                  <th>Informacoes</th>
-                  <th>Preco / Estoque</th>
-                  <th>Movimentar</th>
-                  <th>Novo custo</th>
+                  <th>Imagem / SKU</th>
+                  <th>Nome</th>
+                  <th>Preco</th>
+                  <th>Estoque</th>
+                  <th>Custo</th>
                   <th>Fornecedor</th>
-                  <th>Cod Fornec</th>
+                  <th>Cod Forn</th>
                   <th>Observacoes</th>
-                  <th>Salvar</th>
+                  <th>Fora de linha</th>
                 </tr>
               </thead>
               <tbody>
@@ -541,130 +543,324 @@ export default function EstoquePage() {
                       onClick={() => fetchEstoqueSingle(item.sku)}
                     >
                       <td>
-                        <div className="img-cell">
-                          {item.imagem ? (
-                            <img src={item.imagem} alt={item.nome} />
-                          ) : (
-                            <div className="img-placeholder" />
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="sku-cell">
-                          <strong>{item.sku}</strong>
-                          {!item.ativo ? <span>Desativado</span> : null}
-                          {item.foraDeLinha ? <span>Fora de linha</span> : null}
+                        <div className="sku-stack">
+                          <div className="img-cell">
+                            {item.imagem ? (
+                              <img src={item.imagem} alt={item.nome} />
+                            ) : (
+                              <div className="img-placeholder" />
+                            )}
+                          </div>
+                          <span>{item.sku}</span>
                         </div>
                       </td>
                       <td>
                         <div className="info-cell">
                           <strong>{item.nome}</strong>
-                          <span>Fornecedor: {item.fornecedor}</span>
-                          <span>Cod fornecedor: {item.codFornecedor}</span>
+                          {!item.ativo ? <span>Desativado</span> : null}
                         </div>
                       </td>
                       <td>
                         <div className="metric-cell">
+                          <span className="cell-title">Preco</span>
                           <span>
-                            Preco:{" "}
                             {item.preco !== undefined ? `R$ ${item.preco.toFixed(2)}` : "--"}
                           </span>
+                          <div className="inline-actions">
+                            <button
+                              className="btn secondary"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPopover({ sku: item.sku, type: "preco" });
+                              }}
+                            >
+                              Atualizar
+                            </button>
+                          </div>
+                          {popover?.sku === item.sku && popover.type === "preco" ? (
+                            <div className="popover" onClick={(e) => e.stopPropagation()}>
+                              <div className="popover-row">
+                                <label className="field">
+                                  Novo preco
+                                  <input
+                                    className="input input-tight"
+                                    value={draftPreco[item.sku] || ""}
+                                    onChange={(e) =>
+                                      setDraftPreco((prev) => ({
+                                        ...prev,
+                                        [item.sku]: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </label>
+                              </div>
+                              <div className="inline-actions">
+                                <button
+                                  className="btn secondary"
+                                  type="button"
+                                  onClick={() => setPopover(null)}
+                                >
+                                  Cancelar
+                                </button>
+                                <button className="btn" type="button">
+                                  Salvar
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="metric-cell">
+                          <span className="cell-title">Estoque</span>
                           <span>
-                            Custo:{" "}
-                            {item.custo !== undefined ? `R$ ${item.custo.toFixed(2)}` : "--"}
-                          </span>
-                          <span>
-                            Estoque:{" "}
                             {item.estoque !== undefined ? item.estoque : "--"} /{" "}
                             {item.reservado !== undefined ? item.reservado : "--"}
                           </span>
                           {loadingSku.has(item.sku) ? <span>Atualizando...</span> : null}
+                          <div className="inline-actions">
+                            <button
+                              className="btn secondary"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPopover({ sku: item.sku, type: "estoque" });
+                              }}
+                            >
+                              Movimentar
+                            </button>
+                          </div>
+                          {popover?.sku === item.sku && popover.type === "estoque" ? (
+                            <div className="popover" onClick={(e) => e.stopPropagation()}>
+                              <div className="popover-row">
+                                <label className="field">
+                                  Movimentacao (+/-)
+                                  <input
+                                    className="input input-tight"
+                                    value={draftMov[item.sku]?.quantidade || ""}
+                                    onChange={(e) =>
+                                      setDraftMov((prev) => ({
+                                        ...prev,
+                                        [item.sku]: {
+                                          quantidade: e.target.value,
+                                          custo: prev[item.sku]?.custo || "",
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </label>
+                                <label className="field">
+                                  Novo custo (opcional)
+                                  <input
+                                    className="input input-tight"
+                                    value={draftMov[item.sku]?.custo || ""}
+                                    onChange={(e) =>
+                                      setDraftMov((prev) => ({
+                                        ...prev,
+                                        [item.sku]: {
+                                          quantidade: prev[item.sku]?.quantidade || "",
+                                          custo: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </label>
+                              </div>
+                              <div className="inline-actions">
+                                <button
+                                  className="btn secondary"
+                                  type="button"
+                                  onClick={() => setPopover(null)}
+                                >
+                                  Cancelar
+                                </button>
+                                <button className="btn" type="button">
+                                  Salvar
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       </td>
                       <td>
-                        <input
-                          className="input input-tight"
-                          placeholder="0"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                        <div className="metric-cell">
+                          <span className="cell-title">Custo</span>
+                          <span>
+                            {item.custo !== undefined ? `R$ ${item.custo.toFixed(2)}` : "--"}
+                          </span>
+                        </div>
                       </td>
                       <td>
-                        <input
-                          className="input input-tight"
-                          placeholder="0,00"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                        <div className="metric-cell">
+                          <span className="cell-title">Fornecedor</span>
+                          {(item.fornecedor || "-")
+                            .split(";")
+                            .map((f) => f.trim())
+                            .filter(Boolean)
+                            .map((f) => (
+                              <span key={f} className="chip">
+                                {f}
+                              </span>
+                            ))}
+                          <div className="inline-actions">
+                            <button
+                              className="btn secondary"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPopover({ sku: item.sku, type: "fornecedor" });
+                              }}
+                            >
+                              Editar
+                            </button>
+                          </div>
+                          {popover?.sku === item.sku && popover.type === "fornecedor" ? (
+                            <div className="popover" onClick={(e) => e.stopPropagation()}>
+                              <select
+                                className="input input-tight full-width"
+                                multiple
+                                value={getDraft(item).fornecedores.map(String)}
+                                onChange={(e) =>
+                                  updateDraft(item.sku, {
+                                    fornecedores: Array.from(e.target.selectedOptions).map(
+                                      (opt) => Number(opt.value)
+                                    ),
+                                  })
+                                }
+                              >
+                                {fornecedores.map((f) => (
+                                  <option key={f.id} value={f.id}>
+                                    {f.nome}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="inline-actions">
+                                <button
+                                  className="btn secondary"
+                                  type="button"
+                                  onClick={() => setPopover(null)}
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  className="btn"
+                                  type="button"
+                                  onClick={() => handleSaveExtras(item)}
+                                >
+                                  Salvar
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                       </td>
                       <td>
-                        <select
-                          className="input input-tight"
-                          multiple
-                          value={getDraft(item).fornecedores.map(String)}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) =>
-                            updateDraft(
-                              item.sku,
-                              {
-                                fornecedores: Array.from(e.target.selectedOptions).map(
-                                  (opt) => Number(opt.value)
-                                ),
-                              }
-                            )
-                          }
-                        >
-                          {fornecedores.map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.nome}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="metric-cell">
+                          <span className="cell-title">Cod Forn</span>
+                          <span>{item.codFornecedor || "--"}</span>
+                          <div className="inline-actions">
+                            <button
+                              className="btn secondary"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPopover({ sku: item.sku, type: "cod" });
+                              }}
+                            >
+                              Editar
+                            </button>
+                          </div>
+                          {popover?.sku === item.sku && popover.type === "cod" ? (
+                            <div className="popover" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                className="input input-tight"
+                                value={getDraft(item).codFornecedor}
+                                onChange={(e) =>
+                                  updateDraft(item.sku, { codFornecedor: e.target.value })
+                                }
+                              />
+                              <div className="inline-actions">
+                                <button
+                                  className="btn secondary"
+                                  type="button"
+                                  onClick={() => setPopover(null)}
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  className="btn"
+                                  type="button"
+                                  onClick={() => handleSaveExtras(item)}
+                                >
+                                  Salvar
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                       </td>
                       <td>
-                        <input
-                          className="input input-tight"
-                          value={getDraft(item).codFornecedor}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) =>
-                            updateDraft(item.sku, { codFornecedor: e.target.value })
-                          }
-                        />
+                        <div className="metric-cell">
+                          <span className="cell-title">Observacoes</span>
+                          <span>{item.observacoes || "--"}</span>
+                          <div className="inline-actions">
+                            <button
+                              className="btn secondary"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPopover({ sku: item.sku, type: "obs" });
+                              }}
+                            >
+                              Editar
+                            </button>
+                          </div>
+                          {popover?.sku === item.sku && popover.type === "obs" ? (
+                            <div className="popover" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                className="input input-tight"
+                                value={getDraft(item).observacoes}
+                                onChange={(e) =>
+                                  updateDraft(item.sku, { observacoes: e.target.value })
+                                }
+                              />
+                              <div className="inline-actions">
+                                <button
+                                  className="btn secondary"
+                                  type="button"
+                                  onClick={() => setPopover(null)}
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  className="btn"
+                                  type="button"
+                                  onClick={() => handleSaveExtras(item)}
+                                >
+                                  Salvar
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                       </td>
                       <td>
-                        <input
-                          className="input input-tight"
-                          value={getDraft(item).observacoes}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) =>
-                            updateDraft(item.sku, { observacoes: e.target.value })
-                          }
-                          placeholder="-"
-                        />
-                      </td>
-                      <td>
-                        <div className="panel-actions">
-                          <label className="field" style={{ gap: 4 }}>
-                            <input
-                              type="checkbox"
-                              checked={getDraft(item).foraDeLinha}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) =>
-                                updateDraft(item.sku, { foraDeLinha: e.target.checked })
-                              }
-                            />
-                            Fora de linha
-                          </label>
-                          <button
-                            className="btn secondary"
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleSaveExtras(item);
+                        <label className="checkbox">
+                          <input
+                            type="checkbox"
+                            checked={getDraft(item).foraDeLinha}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              updateDraft(item.sku, { foraDeLinha: e.target.checked });
+                              void handleSaveExtras({
+                                ...item,
+                                foraDeLinha: e.target.checked,
+                              });
                             }}
-                            disabled={busy}
-                          >
-                            Salvar
-                          </button>
-                        </div>
+                          />
+                          Fora de linha
+                        </label>
                       </td>
                     </tr>
                   ))
