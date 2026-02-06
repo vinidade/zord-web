@@ -20,51 +20,6 @@ type EstoqueItem = {
   reservado?: number;
 };
 
-const MOCK_ITEMS: EstoqueItem[] = [
-  {
-    sku: "CH81001_AZ09",
-    nome: "Camisa UV Dry Azul - G",
-    fornecedor: "Extreme UV",
-    codFornecedor: "EX-UV-009",
-    ativo: true,
-    foraDeLinha: false,
-    observacoes: "Reposicao semanal na quarta.",
-    imagem: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=300",
-    preco: 189.9,
-    custo: 72.4,
-    estoque: 18,
-    reservado: 2,
-  },
-  {
-    sku: "BL22002_PR01",
-    nome: "Blusa Termica Preta - M",
-    fornecedor: "PolarPro",
-    codFornecedor: "PP-TR-441",
-    ativo: true,
-    foraDeLinha: false,
-    observacoes: "",
-    imagem: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300",
-    preco: 149.9,
-    custo: 61,
-    estoque: 6,
-    reservado: 1,
-  },
-  {
-    sku: "JA30001_CZ02",
-    nome: "Jaqueta Corta Vento Cinza - P",
-    fornecedor: "Artemis",
-    codFornecedor: "ART-CV-02",
-    ativo: false,
-    foraDeLinha: true,
-    observacoes: "Descontinuado pelo fornecedor.",
-    imagem: "https://images.unsplash.com/photo-1484519332611-516457305ff6?w=300",
-    preco: 299.9,
-    custo: 130,
-    estoque: 0,
-    reservado: 0,
-  },
-];
-
 export default function EstoquePage() {
   const router = useRouter();
   const { session, loading } = useSession();
@@ -74,7 +29,10 @@ export default function EstoquePage() {
     fornecedor: "",
     codFornecedor: "",
   });
-  const [items, setItems] = useState<EstoqueItem[]>(MOCK_ITEMS);
+  const [items, setItems] = useState<EstoqueItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!loading && !session) {
@@ -86,6 +44,117 @@ export default function EstoquePage() {
     if (!supabaseClient) return;
     await supabaseClient.auth.signOut();
     router.replace("/login");
+  };
+
+  const loadCatalogo = async (targetPage: number) => {
+    setBusy(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/catalogo?page=${targetPage}&limit=100`);
+      const json = await res.json();
+      if (!json.ok) {
+        throw new Error(json.error || "Falha ao buscar catalogo.");
+      }
+
+      const baseItems: EstoqueItem[] = (json.catalogo || []).map((it: any) => ({
+        sku: String(it.codigo || ""),
+        nome: String(it.nomeDerivacao || ""),
+        fornecedor: "",
+        codFornecedor: "",
+        ativo: it.ativo !== false,
+        foraDeLinha: false,
+        observacoes: "",
+        imagem: it.urlImagem || "",
+        preco: Number(it.preco ?? 0),
+        custo: undefined,
+        estoque: undefined,
+        reservado: undefined,
+      }));
+
+      setItems(baseItems);
+
+      const skus = baseItems.map((it) => it.sku).filter(Boolean);
+      if (skus.length) {
+        void fetchExtras(skus);
+        void fetchEstoqueLive(skus);
+      }
+    } catch (err: any) {
+      setError(err?.message || String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const fetchExtras = async (skus: string[]) => {
+    try {
+      const res = await fetch(`/api/extras?skus=${encodeURIComponent(skus.join(","))}`);
+      const json = await res.json();
+      if (!json.ok) return;
+
+      const map = new Map(
+        (json.extras || []).map((row: any) => [
+          row.sku,
+          {
+            codFornecedor: row.codFornecedor || "",
+            foraDeLinha: Boolean(row.foraDeLinha),
+            observacoes: row.observacoes || "",
+            fornecedores: Array.isArray(row.fornecedores) ? row.fornecedores : [],
+          },
+        ])
+      );
+
+      setItems((prev) =>
+        prev.map((item) => {
+          const extra = map.get(item.sku);
+          if (!extra) return item;
+          return {
+            ...item,
+            codFornecedor: extra.codFornecedor,
+            foraDeLinha: extra.foraDeLinha,
+            observacoes: extra.observacoes,
+            fornecedor: extra.fornecedores.join("; "),
+          };
+        })
+      );
+    } catch {
+      // Silencioso por enquanto.
+    }
+  };
+
+  const fetchEstoqueLive = async (skus: string[]) => {
+    const limit = 10;
+    let index = 0;
+
+    const worker = async () => {
+      while (index < skus.length) {
+        const current = skus[index];
+        index += 1;
+        try {
+          const res = await fetch(`/api/estoque?sku=${encodeURIComponent(current)}`);
+          const json = await res.json();
+          if (!json.ok || !Array.isArray(json.items)) continue;
+          const row = json.items.find((r: any) => r.sku === current) || json.items[0];
+          if (!row) continue;
+          setItems((prev) =>
+            prev.map((item) =>
+              item.sku === current
+                ? {
+                    ...item,
+                    custo: Number(row.custoMedio ?? item.custo),
+                    estoque: Number(row.estoqueAtual ?? item.estoque),
+                    reservado: Number(row.estoqueReservado ?? item.reservado),
+                  }
+                : item
+            )
+          );
+        } catch {
+          // ignora
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: limit }, () => worker()));
   };
 
   const visibleItems = useMemo(() => {
@@ -106,6 +175,12 @@ export default function EstoquePage() {
   const handleClear = () => {
     setFilters({ sku: "", nome: "", fornecedor: "", codFornecedor: "" });
   };
+
+  useEffect(() => {
+    if (!loading && session) {
+      void loadCatalogo(page);
+    }
+  }, [loading, session, page]);
 
   if (loading) {
     return (
@@ -166,14 +241,21 @@ export default function EstoquePage() {
               <p>Filtre por SKU, nome ou fornecedor. Resultado ao vivo.</p>
             </div>
             <div className="panel-actions">
-              <button className="btn" type="button">
-                Buscar
+              <button
+                className="btn"
+                type="button"
+                onClick={() => loadCatalogo(page)}
+                disabled={busy}
+              >
+                {busy ? "Buscando..." : "Buscar"}
               </button>
               <button className="btn secondary" type="button" onClick={handleClear}>
                 Limpar
               </button>
             </div>
           </div>
+
+          {error ? <div className="error">{error}</div> : null}
 
           <div className="filters">
             <label className="field">
@@ -225,6 +307,25 @@ export default function EstoquePage() {
             </div>
             <div className="panel-actions">
               <span className="pill">Modo leitura</span>
+              <div className="panel-actions">
+                <button
+                  className="btn secondary"
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1 || busy}
+                >
+                  Pagina anterior
+                </button>
+                <span className="pill">Pagina {page}</span>
+                <button
+                  className="btn secondary"
+                  type="button"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={busy}
+                >
+                  Proxima pagina
+                </button>
+              </div>
             </div>
           </div>
 
