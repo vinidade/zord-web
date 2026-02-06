@@ -29,6 +29,12 @@ export default function EstoquePage() {
     fornecedor: "",
     codFornecedor: "",
   });
+  const [appliedFilters, setAppliedFilters] = useState({
+    sku: "",
+    nome: "",
+    fornecedor: "",
+    codFornecedor: "",
+  });
   const [items, setItems] = useState<EstoqueItem[]>([]);
   const [loadingSku, setLoadingSku] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
@@ -57,10 +63,12 @@ export default function EstoquePage() {
         page: String(targetPage),
         limit: "100",
       });
-      if (filters.sku) params.set("sku", filters.sku);
-      if (filters.nome) params.set("nome", filters.nome);
-      if (filters.fornecedor) params.set("fornecedor", filters.fornecedor);
-      if (filters.codFornecedor) params.set("codFornecedor", filters.codFornecedor);
+      if (appliedFilters.sku) params.set("sku", appliedFilters.sku);
+      if (appliedFilters.nome) params.set("nome", appliedFilters.nome);
+      if (appliedFilters.fornecedor) params.set("fornecedor", appliedFilters.fornecedor);
+      if (appliedFilters.codFornecedor) {
+        params.set("codFornecedor", appliedFilters.codFornecedor);
+      }
 
       const res = await fetch(`/api/catalogo?${params.toString()}`);
       const json = await res.json();
@@ -172,27 +180,22 @@ export default function EstoquePage() {
     }
   };
 
-  const visibleItems = useMemo(() => {
-    const sku = filters.sku.trim().toLowerCase();
-    const nome = filters.nome.trim().toLowerCase();
-    const fornecedor = filters.fornecedor.trim().toLowerCase();
-    const codFornecedor = filters.codFornecedor.trim().toLowerCase();
-
-    return items.filter((item) => {
-      if (sku && !item.sku.toLowerCase().includes(sku)) return false;
-      if (nome && !item.nome.toLowerCase().includes(nome)) return false;
-      if (fornecedor && !item.fornecedor.toLowerCase().includes(fornecedor)) return false;
-      if (codFornecedor && !item.codFornecedor.toLowerCase().includes(codFornecedor)) return false;
-      return true;
-    });
-  }, [filters, items]);
+  const visibleItems = useMemo(() => items, [items]);
 
   const handleClear = () => {
     setFilters({ sku: "", nome: "", fornecedor: "", codFornecedor: "" });
+    setAppliedFilters({ sku: "", nome: "", fornecedor: "", codFornecedor: "" });
+    setItems([]);
   };
 
   const handleBuscar = () => {
     setPage(1);
+    setAppliedFilters({
+      sku: filters.sku,
+      nome: filters.nome,
+      fornecedor: filters.fornecedor,
+      codFornecedor: filters.codFornecedor,
+    });
     void loadCatalogo(1);
   };
 

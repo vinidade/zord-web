@@ -64,7 +64,14 @@ export async function GET(request: Request) {
     query = query.ilike("sku", `%${sku}%`);
   }
   if (nome) {
-    query = query.ilike("nome_derivacao", `%${nome}%`);
+    const tokens = nome
+      .toLowerCase()
+      .split(/\s+/g)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    for (const token of tokens) {
+      query = query.ilike("nome_derivacao", `%${token}%`);
+    }
   }
   if (skuFilterSet) {
     const list = Array.from(skuFilterSet);
