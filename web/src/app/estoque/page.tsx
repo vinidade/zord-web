@@ -34,6 +34,7 @@ export default function EstoquePage() {
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (!loading && !session) {
@@ -52,13 +53,22 @@ export default function EstoquePage() {
     setError("");
 
     try {
-      const res = await fetch(`/api/catalogo?page=${targetPage}&limit=100`);
+      const params = new URLSearchParams({
+        page: String(targetPage),
+        limit: "100",
+      });
+      if (filters.sku) params.set("sku", filters.sku);
+      if (filters.nome) params.set("nome", filters.nome);
+      if (filters.fornecedor) params.set("fornecedor", filters.fornecedor);
+      if (filters.codFornecedor) params.set("codFornecedor", filters.codFornecedor);
+
+      const res = await fetch(`/api/catalogo?${params.toString()}`);
       const json = await res.json();
       if (!json.ok) {
         throw new Error(json.error || "Falha ao buscar catalogo.");
       }
 
-      const baseItems: EstoqueItem[] = (json.catalogo || [])
+      const baseItems: EstoqueItem[] = (json.items || [])
         .map((it: any) => ({
           sku: String(it.codigo || ""),
           nome: String(it.nomeDerivacao || ""),
@@ -181,11 +191,33 @@ export default function EstoquePage() {
     setFilters({ sku: "", nome: "", fornecedor: "", codFornecedor: "" });
   };
 
-  useEffect(() => {
-    if (!loading && session) {
-      void loadCatalogo(page);
+  const handleBuscar = () => {
+    setPage(1);
+    void loadCatalogo(1);
+  };
+
+  const handleSync = async () => {
+    if (!supabaseClient) return;
+    setSyncing(true);
+    setError("");
+    try {
+      const { data } = await supabaseClient.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Sessao expirada.");
+      const res = await fetch("/api/catalogo/sync", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        throw new Error(json.error || "Falha ao sincronizar.");
+      }
+    } catch (err: any) {
+      setError(err?.message || String(err));
+    } finally {
+      setSyncing(false);
     }
-  }, [loading, session, page]);
+  };
 
   if (loading) {
     return (
@@ -246,16 +278,19 @@ export default function EstoquePage() {
               <p>Filtre por SKU, nome ou fornecedor. Resultado ao vivo.</p>
             </div>
             <div className="panel-actions">
-              <button
-                className="btn"
-                type="button"
-                onClick={() => loadCatalogo(page)}
-                disabled={busy}
-              >
+              <button className="btn" type="button" onClick={handleBuscar} disabled={busy}>
                 {busy ? "Buscando..." : "Buscar"}
               </button>
               <button className="btn secondary" type="button" onClick={handleClear}>
                 Limpar
+              </button>
+              <button
+                className="btn secondary"
+                type="button"
+                onClick={handleSync}
+                disabled={syncing}
+              >
+                {syncing ? "Sincronizando..." : "Sincronizar catalogo"}
               </button>
             </div>
           </div>
@@ -316,7 +351,11 @@ export default function EstoquePage() {
                 <button
                   className="btn secondary"
                   type="button"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  onClick={() => {
+                    const next = Math.max(1, page - 1);
+                    setPage(next);
+                    void loadCatalogo(next);
+                  }}
                   disabled={page === 1 || busy}
                 >
                   Pagina anterior
@@ -325,7 +364,11 @@ export default function EstoquePage() {
                 <button
                   className="btn secondary"
                   type="button"
-                  onClick={() => setPage((p) => p + 1)}
+                  onClick={() => {
+                    const next = page + 1;
+                    setPage(next);
+                    void loadCatalogo(next);
+                  }}
                   disabled={busy}
                 >
                   Proxima pagina
@@ -350,74 +393,84 @@ export default function EstoquePage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleItems.map((item) => (
-                  <tr
-                    key={item.sku}
-                    className={`${item.ativo ? "" : "row-muted"} row-click`}
-                    onClick={() => fetchEstoqueSingle(item.sku)}
-                  >
-                    <td>
-                      <div className="img-cell">
-                        {item.imagem ? (
-                          <img src={item.imagem} alt={item.nome} />
-                        ) : (
-                          <div className="img-placeholder" />
-                        )}
+                {visibleItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={9}>
+                      <div className="empty-state">
+                        Nenhum resultado. Preencha a busca e clique em Buscar.
                       </div>
-                    </td>
-                    <td>
-                      <div className="sku-cell">
-                        <strong>{item.sku}</strong>
-                        {!item.ativo ? <span>Desativado</span> : null}
-                        {item.foraDeLinha ? <span>Fora de linha</span> : null}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="info-cell">
-                        <strong>{item.nome}</strong>
-                        <span>Fornecedor: {item.fornecedor}</span>
-                        <span>Cod fornecedor: {item.codFornecedor}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="metric-cell">
-                        <span>
-                          Preco:{" "}
-                          {item.preco !== undefined ? `R$ ${item.preco.toFixed(2)}` : "--"}
-                        </span>
-                        <span>
-                          Custo:{" "}
-                          {item.custo !== undefined ? `R$ ${item.custo.toFixed(2)}` : "--"}
-                        </span>
-                        <span>
-                          Estoque:{" "}
-                          {item.estoque !== undefined ? item.estoque : "--"} /{" "}
-                          {item.reservado !== undefined ? item.reservado : "--"}
-                        </span>
-                        {loadingSku.has(item.sku) ? <span>Atualizando...</span> : null}
-                      </div>
-                    </td>
-                    <td>
-                      <input className="input input-tight" placeholder="0" />
-                    </td>
-                    <td>
-                      <input className="input input-tight" placeholder="0,00" />
-                    </td>
-                    <td>
-                      <input className="input input-tight" defaultValue={item.fornecedor} />
-                    </td>
-                    <td>
-                      <input className="input input-tight" defaultValue={item.codFornecedor} />
-                    </td>
-                    <td>
-                      <input
-                        className="input input-tight"
-                        defaultValue={item.observacoes}
-                        placeholder="-"
-                      />
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  visibleItems.map((item) => (
+                    <tr
+                      key={item.sku}
+                      className={`${item.ativo ? "" : "row-muted"} row-click`}
+                      onClick={() => fetchEstoqueSingle(item.sku)}
+                    >
+                      <td>
+                        <div className="img-cell">
+                          {item.imagem ? (
+                            <img src={item.imagem} alt={item.nome} />
+                          ) : (
+                            <div className="img-placeholder" />
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="sku-cell">
+                          <strong>{item.sku}</strong>
+                          {!item.ativo ? <span>Desativado</span> : null}
+                          {item.foraDeLinha ? <span>Fora de linha</span> : null}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="info-cell">
+                          <strong>{item.nome}</strong>
+                          <span>Fornecedor: {item.fornecedor}</span>
+                          <span>Cod fornecedor: {item.codFornecedor}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="metric-cell">
+                          <span>
+                            Preco:{" "}
+                            {item.preco !== undefined ? `R$ ${item.preco.toFixed(2)}` : "--"}
+                          </span>
+                          <span>
+                            Custo:{" "}
+                            {item.custo !== undefined ? `R$ ${item.custo.toFixed(2)}` : "--"}
+                          </span>
+                          <span>
+                            Estoque:{" "}
+                            {item.estoque !== undefined ? item.estoque : "--"} /{" "}
+                            {item.reservado !== undefined ? item.reservado : "--"}
+                          </span>
+                          {loadingSku.has(item.sku) ? <span>Atualizando...</span> : null}
+                        </div>
+                      </td>
+                      <td>
+                        <input className="input input-tight" placeholder="0" />
+                      </td>
+                      <td>
+                        <input className="input input-tight" placeholder="0,00" />
+                      </td>
+                      <td>
+                        <input className="input input-tight" defaultValue={item.fornecedor} />
+                      </td>
+                      <td>
+                        <input className="input input-tight" defaultValue={item.codFornecedor} />
+                      </td>
+                      <td>
+                        <input
+                          className="input input-tight"
+                          defaultValue={item.observacoes}
+                          placeholder="-"
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -357,6 +357,13 @@ main {
   background: rgba(15, 125, 92, 0.06);
 }
 
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
 .img-cell {
   width: 80px;
   height: 80px;

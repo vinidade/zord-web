@@ -1,80 +1,102 @@
 import { NextResponse } from "next/server";
+import { getSupabaseServer } from "@/lib/supabaseServer";
 
 const LIMIT_MAX = 100;
 
-function buildCdnUrl(midia: { path?: string; arquivo_nome?: string }) {
-  const cdnBase = (process.env.MAGAZORD_CDN_BASE_URL || "").replace(/\/$/, "");
-  const path = String(midia.path || "").trim();
-  const arquivo = String(midia.arquivo_nome || "").trim();
-  if (!path || !arquivo) return "";
-  if (/^https?:\/\//i.test(path)) {
-    return `${path.replace(/\/$/, "")}/${arquivo}`;
-  }
-  if (!cdnBase) return "";
-  return `${cdnBase}/${path.replace(/^\//, "").replace(/\/$/, "")}/${arquivo}`;
-}
-
 export async function GET(request: Request) {
-  const baseUrl = String(process.env.MAGAZORD_BASE_URL || "").replace(/\/$/, "");
-  const token = String(process.env.MAGAZORD_TOKEN || "").trim();
-  const secret = String(process.env.MAGAZORD_SECRET || "").trim();
-  const lojaId = Number(process.env.MAGAZORD_LOJA_ID || 1);
-
-  if (!baseUrl || !token || !secret) {
-    return NextResponse.json(
-      { ok: false, error: "MAGAZORD env vars missing" },
-      { status: 500 }
-    );
-  }
-
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const limit = Math.min(LIMIT_MAX, Math.max(1, Number(searchParams.get("limit") || 100)));
 
-  const url = `${baseUrl}/api/v2/site/frontend/produto/${lojaId}?limit=${limit}&page=${page}`;
-  const authHeader = "Basic " + Buffer.from(`${token}:${secret}`).toString("base64");
+  const sku = String(searchParams.get("sku") || "").trim();
+  const nome = String(searchParams.get("nome") || "").trim();
+  const fornecedor = String(searchParams.get("fornecedor") || "").trim();
+  const codFornecedor = String(searchParams.get("codFornecedor") || "").trim();
 
-  const resp = await fetch(url, {
-    method: "GET",
-    headers: { Authorization: authHeader, Accept: "application/json" },
-    cache: "no-store",
-  });
+  const supabase = getSupabaseServer();
 
-  const text = await resp.text();
-  if (!resp.ok) {
-    return NextResponse.json(
-      { ok: false, error: text.slice(0, 500) },
-      { status: resp.status }
-    );
+  let skuFilterSet: Set<string> | null = null;
+
+  if (codFornecedor) {
+    const { data, error } = await supabase
+      .from("produto_extra")
+      .select("sku")
+      .ilike("cod_fornecedor", `%${codFornecedor}%`);
+    if (error) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    }
+    skuFilterSet = new Set((data || []).map((r: any) => r.sku));
   }
 
-  const json = JSON.parse(text);
-  const items = Array.isArray(json?.data?.items) ? json.data.items : [];
-  const derivs = items.filter((it: any) => it?.tipo_registro === 2);
+  if (fornecedor) {
+    const { data: forn, error: fornError } = await supabase
+      .from("fornecedores")
+      .select("id")
+      .ilike("nome", `%${fornecedor}%`);
+    if (fornError) {
+      return NextResponse.json({ ok: false, error: fornError.message }, { status: 500 });
+    }
+    const ids = (forn || []).map((r: any) => r.id);
+    if (!ids.length) {
+      return NextResponse.json({ ok: true, items: [], total: 0 });
+    }
+    const { data: rel, error: relError } = await supabase
+      .from("produto_fornecedor")
+      .select("sku")
+      .in("fornecedor_id", ids);
+    if (relError) {
+      return NextResponse.json({ ok: false, error: relError.message }, { status: 500 });
+    }
+    const skuFromForn = new Set((rel || []).map((r: any) => r.sku));
+    skuFilterSet = skuFilterSet
+      ? new Set([...skuFilterSet].filter((s) => skuFromForn.has(s)))
+      : skuFromForn;
+  }
 
-  const catalogo = derivs.map((it: any) => {
-    const midia0 = it?.midias?.[0];
-    const urlImagem = midia0
-      ? buildCdnUrl({ path: midia0.path, arquivo_nome: midia0.arquivo_nome })
-      : "";
-    return {
-      idDerivacao: it?.derivacao_id ?? it?.id_derivacao ?? it?.id,
-      codigoPai: it?.codigo_pai ?? it?.codigoPai ?? it?.produto_codigo_pai ?? "",
-      codigo: it?.codigo ?? "",
-      nomeDerivacao:
-        it?.derivacao_nome && it?.nome ? `${it.nome} - ${it.derivacao_nome}` : it?.nome || "",
-      urlImagem,
-      preco: it?.valor ?? 0,
-      ativo: it?.ativo !== false,
-    };
-  });
+  let query = supabase
+    .from("catalogo")
+    .select(
+      "sku,nome_derivacao,codigo_pai,id_derivacao,url_imagem,ativo,preco",
+      { count: "exact" }
+    );
+
+  if (sku) {
+    query = query.ilike("sku", `%${sku}%`);
+  }
+  if (nome) {
+    query = query.ilike("nome_derivacao", `%${nome}%`);
+  }
+  if (skuFilterSet) {
+    const list = Array.from(skuFilterSet);
+    if (!list.length) {
+      return NextResponse.json({ ok: true, items: [], total: 0 });
+    }
+    query = query.in("sku", list);
+  }
+
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  const { data, error, count } = await query.order("sku", { ascending: true }).range(from, to);
+
+  if (error) {
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  const items = (data || []).map((row: any) => ({
+    codigo: row.sku,
+    nomeDerivacao: row.nome_derivacao,
+    codigoPai: row.codigo_pai,
+    idDerivacao: row.id_derivacao,
+    urlImagem: row.url_imagem,
+    ativo: row.ativo !== false,
+    preco: row.preco ?? undefined,
+  }));
 
   return NextResponse.json({
     ok: true,
     page,
     limit,
-    total: Number(json?.data?.total || catalogo.length),
-    hasMore: Boolean(json?.data?.has_more),
-    catalogo,
+    total: count || 0,
+    items,
   });
 }
