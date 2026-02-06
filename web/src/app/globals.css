@@ -275,6 +275,145 @@ main {
   font-size: 12px;
 }
 
+.panel {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 16px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.panel-header h2 {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 20px;
+}
+
+.panel-header p {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+}
+
+.sheet {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 920px;
+  background: var(--surface-2);
+}
+
+.sheet th,
+.sheet td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  vertical-align: top;
+}
+
+.sheet th {
+  background: #f2f0ea;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.row-muted {
+  opacity: 0.7;
+}
+
+.img-cell {
+  width: 80px;
+  height: 80px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #e0e0dc;
+  display: grid;
+  place-items: center;
+}
+
+.img-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.img-placeholder {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #c9c7c1;
+}
+
+.sku-cell {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.sku-cell strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.info-cell {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.info-cell strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.metric-cell {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.input-tight {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 @media (max-width: 720px) {
   .page {
     padding: 24px 16px 48px;
