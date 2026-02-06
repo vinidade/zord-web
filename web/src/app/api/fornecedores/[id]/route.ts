@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { requireUserFromRequest } from "@/lib/authServer";
 
-export async function PATCH(request: Request, context: { params: { id: string } }) {
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const user = await requireUserFromRequest(request);
   if (!user) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = Number(context.params.id);
+  const params = await context.params;
+  const id = Number(params.id);
   if (!id) {
     return NextResponse.json({ ok: false, error: "invalid id" }, { status: 400 });
   }
@@ -37,13 +41,17 @@ export async function PATCH(request: Request, context: { params: { id: string } 
   return NextResponse.json({ ok: true, fornecedor: data });
 }
 
-export async function DELETE(request: Request, context: { params: { id: string } }) {
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const user = await requireUserFromRequest(request);
   if (!user) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = Number(context.params.id);
+  const params = await context.params;
+  const id = Number(params.id);
   if (!id) {
     return NextResponse.json({ ok: false, error: "invalid id" }, { status: 400 });
   }
