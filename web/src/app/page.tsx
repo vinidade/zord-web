@@ -12,7 +12,7 @@ export default function Home() {
           </div>
           <div className="actions">
             <span className="pill">Magazord + Supabase</span>
-            <a className="btn secondary" href="/login">
+            <a className="btn secondary" href="/estoque">
               Entrar
             </a>
           </div>
@@ -27,7 +27,7 @@ export default function Home() {
               sem latencia desnecessaria.
             </p>
             <div className="actions" style={{ marginTop: 20 }}>
-              <a className="btn" href="/login">
+              <a className="btn" href="/estoque">
                 Acessar painel
               </a>
               <a className="btn secondary" href="#roadmap">
