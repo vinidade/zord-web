@@ -30,6 +30,7 @@ export default function EstoquePage() {
     codFornecedor: "",
   });
   const [items, setItems] = useState<EstoqueItem[]>([]);
+  const [loadingSku, setLoadingSku] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -57,27 +58,28 @@ export default function EstoquePage() {
         throw new Error(json.error || "Falha ao buscar catalogo.");
       }
 
-      const baseItems: EstoqueItem[] = (json.catalogo || []).map((it: any) => ({
-        sku: String(it.codigo || ""),
-        nome: String(it.nomeDerivacao || ""),
-        fornecedor: "",
-        codFornecedor: "",
-        ativo: it.ativo !== false,
-        foraDeLinha: false,
-        observacoes: "",
-        imagem: it.urlImagem || "",
-        preco: Number(it.preco ?? 0),
-        custo: undefined,
-        estoque: undefined,
-        reservado: undefined,
-      }));
+      const baseItems: EstoqueItem[] = (json.catalogo || [])
+        .map((it: any) => ({
+          sku: String(it.codigo || ""),
+          nome: String(it.nomeDerivacao || ""),
+          fornecedor: "",
+          codFornecedor: "",
+          ativo: it.ativo !== false,
+          foraDeLinha: false,
+          observacoes: "",
+          imagem: it.urlImagem || "",
+          preco: undefined,
+          custo: undefined,
+          estoque: undefined,
+          reservado: undefined,
+        }))
+        .sort((a, b) => a.sku.localeCompare(b.sku));
 
       setItems(baseItems);
 
       const skus = baseItems.map((it) => it.sku).filter(Boolean);
       if (skus.length) {
         void fetchExtras(skus);
-        void fetchEstoqueLive(skus);
       }
     } catch (err: any) {
       setError(err?.message || String(err));
@@ -129,48 +131,35 @@ export default function EstoquePage() {
     }
   };
 
-  const fetchEstoqueLive = async (skus: string[]) => {
-    const limit = 4;
-    const delayMs = 120;
-    let index = 0;
-
-    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-    const worker = async () => {
-      while (index < skus.length) {
-        const current = skus[index];
-        index += 1;
-        try {
-          const res = await fetch(`/api/estoque?sku=${encodeURIComponent(current)}`);
-          if (res.status === 429) {
-            await sleep(800);
-            continue;
-          }
-          const json = await res.json();
-          if (!json.ok || !Array.isArray(json.items)) continue;
-          const row = json.items.find((r: any) => r.sku === current) || json.items[0];
-          if (!row) continue;
-          setItems((prev) =>
-            prev.map((item) =>
-              item.sku === current
-                ? {
-                    ...item,
-                    custo: Number(row.custoMedio ?? item.custo),
-                    estoque: Number(row.estoqueAtual ?? item.estoque),
-                    reservado: Number(row.estoqueReservado ?? item.reservado),
-                  }
-                : item
-            )
-          );
-        } catch {
-          // ignora
-        } finally {
-          await sleep(delayMs);
-        }
-      }
-    };
-
-    await Promise.all(Array.from({ length: limit }, () => worker()));
+  const fetchEstoqueSingle = async (sku: string) => {
+    if (loadingSku.has(sku)) return;
+    setLoadingSku((prev) => new Set(prev).add(sku));
+    try {
+      const res = await fetch(`/api/estoque?sku=${encodeURIComponent(sku)}`);
+      const json = await res.json();
+      if (!json.ok || !Array.isArray(json.items)) return;
+      const row = json.items.find((r: any) => r.sku === sku) || json.items[0];
+      if (!row) return;
+      setItems((prev) =>
+        prev.map((item) =>
+          item.sku === sku
+            ? {
+                ...item,
+                custo: Number(row.custoMedio ?? item.custo),
+                estoque: Number(row.estoqueAtual ?? item.estoque),
+                reservado: Number(row.estoqueReservado ?? item.reservado),
+                preco: item.preco,
+              }
+            : item
+        )
+      );
+    } finally {
+      setLoadingSku((prev) => {
+        const next = new Set(prev);
+        next.delete(sku);
+        return next;
+      });
+    }
   };
 
   const visibleItems = useMemo(() => {
@@ -362,7 +351,11 @@ export default function EstoquePage() {
               </thead>
               <tbody>
                 {visibleItems.map((item) => (
-                  <tr key={item.sku} className={item.ativo ? "" : "row-muted"}>
+                  <tr
+                    key={item.sku}
+                    className={`${item.ativo ? "" : "row-muted"} row-click`}
+                    onClick={() => fetchEstoqueSingle(item.sku)}
+                  >
                     <td>
                       <div className="img-cell">
                         {item.imagem ? (
@@ -388,11 +381,20 @@ export default function EstoquePage() {
                     </td>
                     <td>
                       <div className="metric-cell">
-                        <span>Preco: R$ {item.preco?.toFixed(2)}</span>
-                        <span>Custo: R$ {item.custo?.toFixed(2)}</span>
                         <span>
-                          Estoque: {item.estoque ?? 0} / {item.reservado ?? 0}
+                          Preco:{" "}
+                          {item.preco !== undefined ? `R$ ${item.preco.toFixed(2)}` : "--"}
                         </span>
+                        <span>
+                          Custo:{" "}
+                          {item.custo !== undefined ? `R$ ${item.custo.toFixed(2)}` : "--"}
+                        </span>
+                        <span>
+                          Estoque:{" "}
+                          {item.estoque !== undefined ? item.estoque : "--"} /{" "}
+                          {item.reservado !== undefined ? item.reservado : "--"}
+                        </span>
+                        {loadingSku.has(item.sku) ? <span>Atualizando...</span> : null}
                       </div>
                     </td>
                     <td>

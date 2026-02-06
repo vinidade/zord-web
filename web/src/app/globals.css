@@ -348,6 +348,15 @@ main {
   opacity: 0.7;
 }
 
+.row-click {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.row-click:hover {
+  background: rgba(15, 125, 92, 0.06);
+}
+
 .img-cell {
   width: 80px;
   height: 80px;
