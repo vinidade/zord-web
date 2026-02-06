@@ -9,6 +9,7 @@ type EstoqueItem = {
   sku: string;
   nome: string;
   fornecedor: string;
+  fornecedores?: string[];
   codFornecedor: string;
   ativo: boolean;
   foraDeLinha: boolean;
@@ -29,6 +30,20 @@ export default function EstoquePage() {
     fornecedor: "",
     codFornecedor: "",
   });
+  const [fornecedores, setFornecedores] = useState<{ id: number; nome: string }[]>(
+    []
+  );
+  const [drafts, setDrafts] = useState<
+    Record<
+      string,
+      {
+        codFornecedor: string;
+        foraDeLinha: boolean;
+        observacoes: string;
+        fornecedores: number[];
+      }
+    >
+  >({});
   const [appliedFilters, setAppliedFilters] = useState({
     sku: "",
     nome: "",
@@ -85,6 +100,7 @@ export default function EstoquePage() {
           sku: String(it.codigo || ""),
           nome: String(it.nomeDerivacao || ""),
           fornecedor: "",
+          fornecedores: [],
           codFornecedor: "",
           ativo: it.ativo !== false,
           foraDeLinha: false,
@@ -145,11 +161,29 @@ export default function EstoquePage() {
             foraDeLinha: extra.foraDeLinha,
             observacoes: extra.observacoes,
             fornecedor: extra.fornecedores.join("; "),
+            fornecedores: extra.fornecedores,
           };
         })
       );
     } catch {
       // Silencioso por enquanto.
+    }
+  };
+
+  const loadFornecedores = async () => {
+    if (!supabaseClient) return;
+    try {
+      const { data } = await supabaseClient.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/fornecedores", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!json.ok) return;
+      setFornecedores(json.fornecedores || []);
+    } catch {
+      // ignore
     }
   };
 
@@ -224,6 +258,92 @@ export default function EstoquePage() {
       setError(err?.message || String(err));
     } finally {
       setSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && session) {
+      void loadFornecedores();
+    }
+  }, [loading, session]);
+
+  const getDraft = (item: EstoqueItem) => {
+    if (drafts[item.sku]) return drafts[item.sku];
+    const mapByName = new Map(fornecedores.map((f) => [f.nome, f.id]));
+    const list = (item.fornecedores || item.fornecedor.split(";").map((s) => s.trim()))
+      .filter(Boolean)
+      .map((name) => mapByName.get(name))
+      .filter((id): id is number => typeof id === "number");
+    return {
+      codFornecedor: item.codFornecedor || "",
+      foraDeLinha: item.foraDeLinha || false,
+      observacoes: item.observacoes || "",
+      fornecedores: list,
+    };
+  };
+
+  const updateDraft = (sku: string, patch: Partial<(typeof drafts)[string]>) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [sku]: {
+        ...(prev[sku] || {
+          codFornecedor: "",
+          foraDeLinha: false,
+          observacoes: "",
+          fornecedores: [],
+        }),
+        ...patch,
+      },
+    }));
+  };
+
+  const handleSaveExtras = async (item: EstoqueItem) => {
+    if (!supabaseClient) return;
+    setBusy(true);
+    setError("");
+    try {
+      const { data } = await supabaseClient.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Sessao expirada.");
+      const draft = getDraft(item);
+      const res = await fetch(`/api/extras/${encodeURIComponent(item.sku)}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          codFornecedor: draft.codFornecedor,
+          foraDeLinha: draft.foraDeLinha,
+          observacoes: draft.observacoes,
+          fornecedores: draft.fornecedores,
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Falha ao salvar.");
+      setItems((prev) =>
+        prev.map((it) =>
+          it.sku === item.sku
+            ? {
+                ...it,
+                codFornecedor: draft.codFornecedor,
+                foraDeLinha: draft.foraDeLinha,
+                observacoes: draft.observacoes,
+                fornecedor: draft.fornecedores
+                  .map((id) => fornecedores.find((f) => f.id === id)?.nome)
+                  .filter(Boolean)
+                  .join("; "),
+                fornecedores: draft.fornecedores
+                  .map((id) => fornecedores.find((f) => f.id === id)?.nome)
+                  .filter(Boolean) as string[],
+              }
+            : it
+        )
+      );
+    } catch (err: any) {
+      setError(err?.message || String(err));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -401,6 +521,7 @@ export default function EstoquePage() {
                   <th>Fornecedor</th>
                   <th>Cod Fornec</th>
                   <th>Observacoes</th>
+                  <th>Salvar</th>
                 </tr>
               </thead>
               <tbody>
@@ -461,23 +582,89 @@ export default function EstoquePage() {
                         </div>
                       </td>
                       <td>
-                        <input className="input input-tight" placeholder="0" />
-                      </td>
-                      <td>
-                        <input className="input input-tight" placeholder="0,00" />
-                      </td>
-                      <td>
-                        <input className="input input-tight" defaultValue={item.fornecedor} />
-                      </td>
-                      <td>
-                        <input className="input input-tight" defaultValue={item.codFornecedor} />
+                        <input
+                          className="input input-tight"
+                          placeholder="0"
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       </td>
                       <td>
                         <input
                           className="input input-tight"
-                          defaultValue={item.observacoes}
+                          placeholder="0,00"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td>
+                        <select
+                          className="input input-tight"
+                          multiple
+                          value={getDraft(item).fornecedores.map(String)}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            updateDraft(
+                              item.sku,
+                              {
+                                fornecedores: Array.from(e.target.selectedOptions).map(
+                                  (opt) => Number(opt.value)
+                                ),
+                              }
+                            )
+                          }
+                        >
+                          {fornecedores.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          className="input input-tight"
+                          value={getDraft(item).codFornecedor}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            updateDraft(item.sku, { codFornecedor: e.target.value })
+                          }
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="input input-tight"
+                          value={getDraft(item).observacoes}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            updateDraft(item.sku, { observacoes: e.target.value })
+                          }
                           placeholder="-"
                         />
+                      </td>
+                      <td>
+                        <div className="panel-actions">
+                          <label className="field" style={{ gap: 4 }}>
+                            <input
+                              type="checkbox"
+                              checked={getDraft(item).foraDeLinha}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) =>
+                                updateDraft(item.sku, { foraDeLinha: e.target.checked })
+                              }
+                            />
+                            Fora de linha
+                          </label>
+                          <button
+                            className="btn secondary"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleSaveExtras(item);
+                            }}
+                            disabled={busy}
+                          >
+                            Salvar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

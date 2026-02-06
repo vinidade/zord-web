@@ -323,7 +323,7 @@ main {
 .sheet {
   width: 100%;
   border-collapse: collapse;
-  min-width: 920px;
+  min-width: 1060px;
   background: var(--surface-2);
 }
 
