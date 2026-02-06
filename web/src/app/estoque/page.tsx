@@ -73,7 +73,7 @@ export default function EstoquePage() {
           estoque: undefined,
           reservado: undefined,
         }))
-        .sort((a, b) => a.sku.localeCompare(b.sku));
+        .sort((a: EstoqueItem, b: EstoqueItem) => a.sku.localeCompare(b.sku));
 
       setItems(baseItems);
 
