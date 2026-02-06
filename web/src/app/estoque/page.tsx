@@ -54,20 +54,24 @@ export default function EstoquePage() {
     router.replace("/login");
   };
 
-  const loadCatalogo = async (targetPage: number) => {
+  const loadCatalogo = async (
+    targetPage: number,
+    filterOverride?: typeof appliedFilters
+  ) => {
     setBusy(true);
     setError("");
+    const activeFilters = filterOverride ?? appliedFilters;
 
     try {
       const params = new URLSearchParams({
         page: String(targetPage),
         limit: "100",
       });
-      if (appliedFilters.sku) params.set("sku", appliedFilters.sku);
-      if (appliedFilters.nome) params.set("nome", appliedFilters.nome);
-      if (appliedFilters.fornecedor) params.set("fornecedor", appliedFilters.fornecedor);
-      if (appliedFilters.codFornecedor) {
-        params.set("codFornecedor", appliedFilters.codFornecedor);
+      if (activeFilters.sku) params.set("sku", activeFilters.sku);
+      if (activeFilters.nome) params.set("nome", activeFilters.nome);
+      if (activeFilters.fornecedor) params.set("fornecedor", activeFilters.fornecedor);
+      if (activeFilters.codFornecedor) {
+        params.set("codFornecedor", activeFilters.codFornecedor);
       }
 
       const res = await fetch(`/api/catalogo?${params.toString()}`);
@@ -189,14 +193,15 @@ export default function EstoquePage() {
   };
 
   const handleBuscar = () => {
-    setPage(1);
-    setAppliedFilters({
+    const nextFilters = {
       sku: filters.sku,
       nome: filters.nome,
       fornecedor: filters.fornecedor,
       codFornecedor: filters.codFornecedor,
-    });
-    void loadCatalogo(1);
+    };
+    setPage(1);
+    setAppliedFilters(nextFilters);
+    void loadCatalogo(1, nextFilters);
   };
 
   const handleSync = async () => {
