@@ -255,6 +255,9 @@ export default function EstoquePage() {
           </div>
           <div className="actions">
             <span className="pill">{session.user.email}</span>
+            <a className="btn secondary" href="/fornecedores">
+              Fornecedores
+            </a>
             <button className="btn secondary" type="button" onClick={handleSignOut}>
               Sair
             </button>
