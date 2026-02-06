@@ -86,13 +86,20 @@ export default function EstoquePage() {
     }
   };
 
+  type ExtraRow = {
+    codFornecedor: string;
+    foraDeLinha: boolean;
+    observacoes: string;
+    fornecedores: string[];
+  };
+
   const fetchExtras = async (skus: string[]) => {
     try {
       const res = await fetch(`/api/extras?skus=${encodeURIComponent(skus.join(","))}`);
       const json = await res.json();
       if (!json.ok) return;
 
-      const map = new Map(
+      const map = new Map<string, ExtraRow>(
         (json.extras || []).map((row: any) => [
           row.sku,
           {
