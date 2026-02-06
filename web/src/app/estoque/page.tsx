@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/sessionStore";
+import { supabaseClient } from "@/lib/supabaseClient";
 
 export default function EstoquePage() {
   const router = useRouter();
@@ -13,6 +14,12 @@ export default function EstoquePage() {
       router.replace("/login");
     }
   }, [loading, session, router]);
+
+  const handleSignOut = async () => {
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+    router.replace("/login");
+  };
 
   if (loading) {
     return (
@@ -42,6 +49,9 @@ export default function EstoquePage() {
           </div>
           <div className="actions">
             <span className="pill">{session.user.email}</span>
+            <button className="btn secondary" type="button" onClick={handleSignOut}>
+              Sair
+            </button>
           </div>
         </nav>
 
