@@ -130,8 +130,11 @@ export default function EstoquePage() {
   };
 
   const fetchEstoqueLive = async (skus: string[]) => {
-    const limit = 10;
+    const limit = 4;
+    const delayMs = 120;
     let index = 0;
+
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
     const worker = async () => {
       while (index < skus.length) {
@@ -139,6 +142,10 @@ export default function EstoquePage() {
         index += 1;
         try {
           const res = await fetch(`/api/estoque?sku=${encodeURIComponent(current)}`);
+          if (res.status === 429) {
+            await sleep(800);
+            continue;
+          }
           const json = await res.json();
           if (!json.ok || !Array.isArray(json.items)) continue;
           const row = json.items.find((r: any) => r.sku === current) || json.items[0];
@@ -157,6 +164,8 @@ export default function EstoquePage() {
           );
         } catch {
           // ignora
+        } finally {
+          await sleep(delayMs);
         }
       }
     };
