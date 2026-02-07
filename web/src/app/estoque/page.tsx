@@ -611,7 +611,7 @@ export default function EstoquePage() {
                         <div className="info-cell">
                           <strong>{item.nome}</strong>
                           <div className="inline-row">
-                            <span className="obs-text">
+                            <span className="obs-text grow">
                               <strong>OBS:</strong> {item.observacoes || "-"}
                             </span>
                             <button
@@ -646,89 +646,97 @@ export default function EstoquePage() {
                       </td>
                       <td>
                         <div className="metric-cell">
-                          <span className="value-big">
-                            {item.preco !== undefined ? `R$ ${item.preco.toFixed(2)}` : "--"}
-                          </span>
-                          <button
-                            className="icon-btn inline-icon"
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openModal(item, "preco");
-                            }}
-                            aria-label="Editar preco"
-                          >
-                            ✎
-                          </button>
+                          <div className="inline-row">
+                            <span className="value-big">
+                              {item.preco !== undefined ? `R$ ${item.preco.toFixed(2)}` : "--"}
+                            </span>
+                            <button
+                              className="icon-btn inline-icon"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(item, "preco");
+                              }}
+                              aria-label="Editar preco"
+                            >
+                              ✎
+                            </button>
+                          </div>
                         </div>
                       </td>
                       <td>
                         <div className="metric-cell">
-                          <span className="value-big">
-                            {item.estoque !== undefined ? item.estoque : "--"}
-                          </span>
-                          <span className="value-sub">
-                            / {item.reservado !== undefined ? item.reservado : "--"}
-                          </span>
+                          <div className="inline-row">
+                            <span className="value-big">
+                              {item.estoque !== undefined ? item.estoque : "--"}
+                            </span>
+                            <span className="value-sub danger">
+                              / {item.reservado !== undefined ? item.reservado : "--"}
+                            </span>
+                            <button
+                              className="icon-btn inline-icon"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(item, "estoque");
+                              }}
+                              aria-label="Movimentar estoque"
+                            >
+                              ✎
+                            </button>
+                          </div>
                           {loadingSku.has(item.sku) ? <span>Atualizando...</span> : null}
-                          <button
-                            className="icon-btn inline-icon"
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openModal(item, "estoque");
-                            }}
-                            aria-label="Movimentar estoque"
-                          >
-                            ✎
-                          </button>
                         </div>
                       </td>
                       <td>
                         <div className="metric-cell">
-                          <span className="value-big">
-                            {item.custo !== undefined ? `R$ ${item.custo.toFixed(2)}` : "--"}
-                          </span>
+                          <div className="inline-row">
+                            <span className="value-big">
+                              {item.custo !== undefined ? `R$ ${item.custo.toFixed(2)}` : "--"}
+                            </span>
+                          </div>
                         </div>
                       </td>
                       <td>
                         <div className="metric-cell">
-                          {(item.fornecedor || "-")
-                            .split(";")
-                            .map((f) => f.trim())
-                            .filter(Boolean)
-                            .map((f) => (
-                              <span key={f} className="chip">
-                                {f}
-                              </span>
-                            ))}
-                          <button
-                            className="icon-btn inline-icon"
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openModal(item, "fornecedor");
-                            }}
-                            aria-label="Editar fornecedores"
-                          >
-                            ✎
-                          </button>
+                          <div className="inline-row">
+                            <span className="value-sub">
+                              {(item.fornecedor || "-")
+                                .split(";")
+                                .map((f) => f.trim())
+                                .filter(Boolean)
+                                .join(", ")}
+                            </span>
+                            <button
+                              className="icon-btn inline-icon"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(item, "fornecedor");
+                              }}
+                              aria-label="Editar fornecedores"
+                            >
+                              ✎
+                            </button>
+                          </div>
                         </div>
                       </td>
                       <td>
                         <div className="metric-cell">
-                          <span>{item.codFornecedor || "--"}</span>
-                          <button
-                            className="icon-btn inline-icon"
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openModal(item, "cod");
-                            }}
-                            aria-label="Editar codigo fornecedor"
-                          >
-                            ✎
-                          </button>
+                          <div className="inline-row">
+                            <span className="value-sub">{item.codFornecedor || "--"}</span>
+                            <button
+                              className="icon-btn inline-icon"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(item, "cod");
+                              }}
+                              aria-label="Editar codigo fornecedor"
+                            >
+                              ✎
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
