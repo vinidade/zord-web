@@ -93,6 +93,8 @@ export async function POST(request: Request) {
   const qtdAbs = Math.abs(quantidade);
   const origemMovimento = custoBase > 0 ? 2 : 1;
 
+  const signal = quantidade < 0 ? "-" : "+";
+  const userLabel = String(user.email || "user").split("@")[0];
   const payload: any = {
     produto: sku,
     deposito,
@@ -100,7 +102,7 @@ export async function POST(request: Request) {
     tipo: 1,
     tipoOperacao: reduzir ? 2 : 1,
     origemMovimento: reduzir ? 8 : origemMovimento,
-    observacao: `ZORD > ${motivo} > ${user.email || "user"}`,
+    observacao: `ZORD > ${signal}${qtdAbs} > ${motivo} > ${userLabel}`,
   };
 
   if (!reduzir && custoBase > 0) {

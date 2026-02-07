@@ -589,6 +589,10 @@ main {
   padding: 24px;
 }
 
+.modal.loading {
+  cursor: progress;
+}
+
 .modal-card {
   width: min(520px, 92vw);
   background: var(--surface);

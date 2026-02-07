@@ -56,6 +56,7 @@ export default function EstoquePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [modal, setModal] = useState<{
     sku: string;
@@ -405,7 +406,7 @@ export default function EstoquePage() {
       setError("Preco invalido.");
       return;
     }
-    setBusy(true);
+    setSaving(true);
     setError("");
     try {
       const { data } = await supabaseClient.auth.getSession();
@@ -428,7 +429,7 @@ export default function EstoquePage() {
     } catch (err: any) {
       setError(err?.message || String(err));
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   };
 
@@ -440,7 +441,7 @@ export default function EstoquePage() {
       setError("Movimentacao invalida.");
       return;
     }
-    setBusy(true);
+    setSaving(true);
     setError("");
     try {
       const { data } = await supabaseClient.auth.getSession();
@@ -472,7 +473,7 @@ export default function EstoquePage() {
     } catch (err: any) {
       setError(err?.message || String(err));
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   };
 
@@ -524,14 +525,9 @@ export default function EstoquePage() {
               <button className="btn secondary" type="button" onClick={handleClear}>
                 Limpar
               </button>
-              <button
-                className="btn secondary"
-                type="button"
-                onClick={handleSync}
-                disabled={syncing}
-              >
-                {syncing ? "Sincronizando..." : "Sincronizar catalogo"}
-              </button>
+              <a className="btn secondary" href="/fornecedores">
+                Lista de fornecedores
+              </a>
             </div>
           </div>
 
@@ -616,6 +612,14 @@ export default function EstoquePage() {
             </div>
             <div className="panel-actions">
               <div className="panel-actions">
+                <button
+                  className="btn secondary"
+                  type="button"
+                  onClick={handleSync}
+                  disabled={syncing}
+                >
+                  {syncing ? "Sincronizando..." : "Sincronizar catalogo"}
+                </button>
                 <button
                   className="btn secondary"
                   type="button"
@@ -850,7 +854,7 @@ export default function EstoquePage() {
         </section>
       </div>
       {modal ? (
-        <div className="modal">
+        <div className={`modal${saving ? " loading" : ""}`}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="inline-row">
@@ -899,8 +903,8 @@ export default function EstoquePage() {
                   <button className="btn secondary" type="button" onClick={() => setModal(null)}>
                     Cancelar
                   </button>
-                  <button className="btn" type="button" onClick={handleSavePreco} disabled={busy}>
-                    Salvar
+                  <button className="btn" type="button" onClick={handleSavePreco} disabled={saving}>
+                    {saving ? "Salvando..." : "Salvar"}
                   </button>
                 </div>
               </div>
@@ -966,8 +970,8 @@ export default function EstoquePage() {
                   <button className="btn secondary" type="button" onClick={() => setModal(null)}>
                     Cancelar
                   </button>
-                  <button className="btn" type="button" onClick={handleSaveMov} disabled={busy}>
-                    Salvar
+                  <button className="btn" type="button" onClick={handleSaveMov} disabled={saving}>
+                    {saving ? "Salvando..." : "Salvar"}
                   </button>
                 </div>
               </div>
