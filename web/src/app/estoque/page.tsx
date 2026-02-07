@@ -466,6 +466,12 @@ export default function EstoquePage() {
                 className="input"
                 value={filters.sku}
                 onChange={(e) => setFilters((prev) => ({ ...prev, sku: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleBuscar();
+                  }
+                }}
               />
             </label>
             <label className="field">
@@ -474,6 +480,12 @@ export default function EstoquePage() {
                 className="input"
                 value={filters.nome}
                 onChange={(e) => setFilters((prev) => ({ ...prev, nome: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleBuscar();
+                  }
+                }}
               />
             </label>
             <label className="field">
@@ -482,6 +494,12 @@ export default function EstoquePage() {
                 className="input"
                 value={filters.fornecedor}
                 onChange={(e) => setFilters((prev) => ({ ...prev, fornecedor: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleBuscar();
+                  }
+                }}
               />
             </label>
             <label className="field">
@@ -492,8 +510,17 @@ export default function EstoquePage() {
                 onChange={(e) =>
                   setFilters((prev) => ({ ...prev, codFornecedor: e.target.value }))
                 }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleBuscar();
+                  }
+                }}
               />
             </label>
+            <button type="submit" style={{ display: "none" }} aria-hidden="true">
+              Buscar
+            </button>
           </form>
         </section>
 
