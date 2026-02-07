@@ -376,6 +376,12 @@ main {
   place-items: center;
 }
 
+.img-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
 .img-cell img {
   width: 100%;
   height: 100%;
@@ -543,14 +549,10 @@ main {
   margin-left: 4px;
 }
 
-.img-hover {
-  position: relative;
-}
-
 .img-zoom {
   position: absolute;
   top: -10px;
-  left: 92px;
+  left: 96px;
   width: 220px;
   height: 220px;
   background: var(--surface);

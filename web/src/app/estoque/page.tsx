@@ -592,12 +592,14 @@ export default function EstoquePage() {
                     >
                       <td>
                         <div className="sku-stack">
-                          <div className="img-cell img-hover">
-                            {item.imagem ? (
-                              <img src={item.imagem} alt={item.nome} />
-                            ) : (
-                              <div className="img-placeholder" />
-                            )}
+                          <div className="img-wrap img-hover">
+                            <div className="img-cell">
+                              {item.imagem ? (
+                                <img src={item.imagem} alt={item.nome} />
+                              ) : (
+                                <div className="img-placeholder" />
+                              )}
+                            </div>
                             {item.imagem ? (
                               <div className="img-zoom">
                                 <img src={item.imagem} alt={item.nome} />
@@ -748,16 +750,36 @@ export default function EstoquePage() {
         </section>
       </div>
       {modal ? (
-        <div className="modal" onClick={() => setModal(null)}>
+        <div className="modal">
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>
-                {modal.type === "preco" && "Atualizar preco"}
-                {modal.type === "estoque" && "Movimentar estoque"}
-                {modal.type === "fornecedor" && "Editar fornecedores"}
-                {modal.type === "cod" && "Editar codigo fornecedor"}
-                {modal.type === "obs" && "Editar observacoes"}
-              </h3>
+              <div className="inline-row">
+                <div className="img-cell">
+                  {items.find((it) => it.sku === modal.sku)?.imagem ? (
+                    <img
+                      src={items.find((it) => it.sku === modal.sku)?.imagem}
+                      alt={items.find((it) => it.sku === modal.sku)?.nome || ""}
+                    />
+                  ) : (
+                    <div className="img-placeholder" />
+                  )}
+                </div>
+                <div>
+                  <h3>
+                    {modal.type === "preco" && "Atualizar preco"}
+                    {modal.type === "estoque" && "Movimentar estoque"}
+                    {modal.type === "fornecedor" && "Editar fornecedores"}
+                    {modal.type === "cod" && "Editar codigo fornecedor"}
+                    {modal.type === "obs" && "Editar observacoes"}
+                  </h3>
+                  <div className="value-sub">
+                    {items.find((it) => it.sku === modal.sku)?.sku}
+                  </div>
+                  <div className="value-sub">
+                    {items.find((it) => it.sku === modal.sku)?.nome}
+                  </div>
+                </div>
+              </div>
               <button className="icon-btn" type="button" onClick={() => setModal(null)}>
                 ✕
               </button>
