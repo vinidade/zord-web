@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUserFromRequest } from "@/lib/authServer";
 
 const LIMIT_MAX = 100;
 
@@ -55,4 +56,81 @@ export async function GET(request: Request) {
   }));
 
   return NextResponse.json({ ok: true, items: mapped });
+}
+
+export async function POST(request: Request) {
+  const user = await requireUserFromRequest(request);
+  if (!user) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  const baseUrl = String(process.env.MAGAZORD_BASE_URL || "").replace(/\/$/, "");
+  const token = String(process.env.MAGAZORD_TOKEN || "").trim();
+  const secret = String(process.env.MAGAZORD_SECRET || "").trim();
+  const deposito = Number(process.env.MAGAZORD_DEPOSITO_ID || 1);
+
+  if (!baseUrl || !token || !secret) {
+    return NextResponse.json(
+      { ok: false, error: "MAGAZORD env vars missing" },
+      { status: 500 }
+    );
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const sku = String(body?.sku || "").trim();
+  const quantidade = Number(body?.quantidade || 0);
+  const custoBase = Number(body?.custoBase || 0);
+  const motivo = String(body?.motivo || "").trim() || "-";
+
+  if (!sku || !quantidade) {
+    return NextResponse.json({ ok: false, error: "sku/quantidade required" }, { status: 400 });
+  }
+
+  const authHeader = "Basic " + Buffer.from(`${token}:${secret}`).toString("base64");
+  const url = `${baseUrl}/api/v1/estoque`;
+
+  const reduzir = quantidade < 0;
+  const qtdAbs = Math.abs(quantidade);
+  const origemMovimento = custoBase > 0 ? 2 : 1;
+
+  const payload: any = {
+    produto: sku,
+    deposito,
+    quantidade: qtdAbs,
+    tipo: 1,
+    tipoOperacao: reduzir ? 2 : 1,
+    origemMovimento: reduzir ? 8 : origemMovimento,
+    observacao: `ZORD > ${motivo} > ${user.email || "user"}`,
+  };
+
+  if (!reduzir && custoBase > 0) {
+    payload.valorMovimento = Number((qtdAbs * custoBase).toFixed(2));
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: authHeader,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await resp.text();
+  if (!resp.ok) {
+    return NextResponse.json(
+      { ok: false, error: text.slice(0, 500) },
+      { status: resp.status }
+    );
+  }
+
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    json = { raw: text };
+  }
+
+  return NextResponse.json({ ok: true, result: json });
 }

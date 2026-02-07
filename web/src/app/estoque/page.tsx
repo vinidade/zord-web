@@ -392,6 +392,90 @@ export default function EstoquePage() {
     }
   };
 
+  const parseNumber = (value: string) => {
+    const cleaned = value.replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
+    const num = Number(cleaned);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const handleSavePreco = async () => {
+    if (!modal || modal.type !== "preco" || !supabaseClient) return;
+    const preco = parseNumber(draftPreco);
+    if (!preco) {
+      setError("Preco invalido.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const { data } = await supabaseClient.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Sessao expirada.");
+      const res = await fetch("/api/preco", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sku: modal.sku, preco }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Falha ao atualizar preco.");
+      setItems((prev) =>
+        prev.map((it) => (it.sku === modal.sku ? { ...it, preco } : it))
+      );
+      setModal(null);
+    } catch (err: any) {
+      setError(err?.message || String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSaveMov = async () => {
+    if (!modal || modal.type !== "estoque" || !supabaseClient) return;
+    const quantidade = parseNumber(draftMov.quantidade);
+    const custoBase = parseNumber(draftMov.custo);
+    if (!quantidade) {
+      setError("Movimentacao invalida.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const { data } = await supabaseClient.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Sessao expirada.");
+      const res = await fetch("/api/estoque", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sku: modal.sku,
+          quantidade,
+          custoBase,
+          motivo: draftMov.motivo,
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Falha ao movimentar estoque.");
+      await fetchEstoqueSingle(modal.sku);
+      if (!keepMotivo) {
+        setDraftMov((prev) => ({ ...prev, motivo: "1" }));
+      }
+      if (!keepCusto) {
+        setDraftMov((prev) => ({ ...prev, custo: "" }));
+      }
+      setModal(null);
+    } catch (err: any) {
+      setError(err?.message || String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <main className="auth">
@@ -815,7 +899,7 @@ export default function EstoquePage() {
                   <button className="btn secondary" type="button" onClick={() => setModal(null)}>
                     Cancelar
                   </button>
-                  <button className="btn" type="button">
+                  <button className="btn" type="button" onClick={handleSavePreco} disabled={busy}>
                     Salvar
                   </button>
                 </div>
@@ -882,7 +966,7 @@ export default function EstoquePage() {
                   <button className="btn secondary" type="button" onClick={() => setModal(null)}>
                     Cancelar
                   </button>
-                  <button className="btn" type="button">
+                  <button className="btn" type="button" onClick={handleSaveMov} disabled={busy}>
                     Salvar
                   </button>
                 </div>
