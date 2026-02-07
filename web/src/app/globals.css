@@ -482,6 +482,66 @@ main {
   width: 100%;
 }
 
+.value-big {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.value-sub {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.icon-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.icon-btn:hover {
+  background: var(--surface-2);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 18, 0.32);
+  display: grid;
+  place-items: center;
+  z-index: 30;
+  padding: 24px;
+}
+
+.modal-card {
+  width: min(520px, 92vw);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 16px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-body {
+  display: grid;
+  gap: 12px;
+}
+
 .input-tight {
   padding: 8px 10px;
   font-size: 12px;

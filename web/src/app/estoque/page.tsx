@@ -56,9 +56,14 @@ export default function EstoquePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [syncing, setSyncing] = useState(false);
-  const [popover, setPopover] = useState<{ sku: string; type: "preco" | "estoque" | "fornecedor" | "cod" | "obs" } | null>(null);
-  const [draftPreco, setDraftPreco] = useState<Record<string, string>>({});
-  const [draftMov, setDraftMov] = useState<Record<string, { quantidade: string; custo: string }>>({});
+  const [modal, setModal] = useState<{
+    sku: string;
+    type: "preco" | "estoque" | "fornecedor" | "cod" | "obs";
+  } | null>(null);
+  const [draftPreco, setDraftPreco] = useState("");
+  const [draftMov, setDraftMov] = useState({ quantidade: "", custo: "", motivo: "1" });
+  const [keepMotivo, setKeepMotivo] = useState(true);
+  const [keepCusto, setKeepCusto] = useState(false);
 
   useEffect(() => {
     if (!loading && !session) {
@@ -221,6 +226,22 @@ export default function EstoquePage() {
     }
   };
 
+  const fetchPrecoSingle = async (sku: string) => {
+    try {
+      const res = await fetch(`/api/preco?sku=${encodeURIComponent(sku)}`);
+      const json = await res.json();
+      if (!json.ok) return;
+      if (json.preco === undefined || json.preco === null) return;
+      setItems((prev) =>
+        prev.map((item) =>
+          item.sku === sku ? { ...item, preco: Number(json.preco) } : item
+        )
+      );
+    } catch {
+      // ignore
+    }
+  };
+
   const visibleItems = useMemo(() => items, [items]);
 
   const handleClear = () => {
@@ -347,6 +368,20 @@ export default function EstoquePage() {
       setError(err?.message || String(err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const openModal = (item: EstoqueItem, type: typeof modal extends { type: infer T } ? T : never) => {
+    setModal({ sku: item.sku, type });
+    if (type === "preco") {
+      setDraftPreco(item.preco !== undefined ? String(item.preco.toFixed(2)) : "");
+    }
+    if (type === "estoque") {
+      setDraftMov((prev) => ({
+        quantidade: "",
+        custo: keepCusto ? prev.custo : "",
+        motivo: keepMotivo ? prev.motivo : "1",
+      }));
     }
   };
 
@@ -540,7 +575,10 @@ export default function EstoquePage() {
                     <tr
                       key={item.sku}
                       className={`${item.ativo ? "" : "row-muted"} row-click`}
-                      onClick={() => fetchEstoqueSingle(item.sku)}
+                      onClick={() => {
+                        void fetchEstoqueSingle(item.sku);
+                        void fetchPrecoSingle(item.sku);
+                      }}
                     >
                       <td>
                         <div className="sku-stack">
@@ -562,138 +600,53 @@ export default function EstoquePage() {
                       </td>
                       <td>
                         <div className="metric-cell">
-                          <span className="cell-title">Preco</span>
-                          <span>
+                          <span className="value-big">
                             {item.preco !== undefined ? `R$ ${item.preco.toFixed(2)}` : "--"}
                           </span>
-                          <div className="inline-actions">
-                            <button
-                              className="btn secondary"
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPopover({ sku: item.sku, type: "preco" });
-                              }}
-                            >
-                              Atualizar
-                            </button>
-                          </div>
-                          {popover?.sku === item.sku && popover.type === "preco" ? (
-                            <div className="popover" onClick={(e) => e.stopPropagation()}>
-                              <div className="popover-row">
-                                <label className="field">
-                                  Novo preco
-                                  <input
-                                    className="input input-tight"
-                                    value={draftPreco[item.sku] || ""}
-                                    onChange={(e) =>
-                                      setDraftPreco((prev) => ({
-                                        ...prev,
-                                        [item.sku]: e.target.value,
-                                      }))
-                                    }
-                                  />
-                                </label>
-                              </div>
-                              <div className="inline-actions">
-                                <button
-                                  className="btn secondary"
-                                  type="button"
-                                  onClick={() => setPopover(null)}
-                                >
-                                  Cancelar
-                                </button>
-                                <button className="btn" type="button">
-                                  Salvar
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
+                          <button
+                            className="icon-btn"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openModal(item, "preco");
+                            }}
+                            aria-label="Editar preco"
+                          >
+                            ✎
+                          </button>
                         </div>
                       </td>
                       <td>
                         <div className="metric-cell">
-                          <span className="cell-title">Estoque</span>
-                          <span>
-                            {item.estoque !== undefined ? item.estoque : "--"} /{" "}
-                            {item.reservado !== undefined ? item.reservado : "--"}
+                          <span className="value-big">
+                            {item.estoque !== undefined ? item.estoque : "--"}
+                          </span>
+                          <span className="value-sub">
+                            / {item.reservado !== undefined ? item.reservado : "--"}
                           </span>
                           {loadingSku.has(item.sku) ? <span>Atualizando...</span> : null}
-                          <div className="inline-actions">
-                            <button
-                              className="btn secondary"
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPopover({ sku: item.sku, type: "estoque" });
-                              }}
-                            >
-                              Movimentar
-                            </button>
-                          </div>
-                          {popover?.sku === item.sku && popover.type === "estoque" ? (
-                            <div className="popover" onClick={(e) => e.stopPropagation()}>
-                              <div className="popover-row">
-                                <label className="field">
-                                  Movimentacao (+/-)
-                                  <input
-                                    className="input input-tight"
-                                    value={draftMov[item.sku]?.quantidade || ""}
-                                    onChange={(e) =>
-                                      setDraftMov((prev) => ({
-                                        ...prev,
-                                        [item.sku]: {
-                                          quantidade: e.target.value,
-                                          custo: prev[item.sku]?.custo || "",
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </label>
-                                <label className="field">
-                                  Novo custo (opcional)
-                                  <input
-                                    className="input input-tight"
-                                    value={draftMov[item.sku]?.custo || ""}
-                                    onChange={(e) =>
-                                      setDraftMov((prev) => ({
-                                        ...prev,
-                                        [item.sku]: {
-                                          quantidade: prev[item.sku]?.quantidade || "",
-                                          custo: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                  />
-                                </label>
-                              </div>
-                              <div className="inline-actions">
-                                <button
-                                  className="btn secondary"
-                                  type="button"
-                                  onClick={() => setPopover(null)}
-                                >
-                                  Cancelar
-                                </button>
-                                <button className="btn" type="button">
-                                  Salvar
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
+                          <button
+                            className="icon-btn"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openModal(item, "estoque");
+                            }}
+                            aria-label="Movimentar estoque"
+                          >
+                            ✎
+                          </button>
                         </div>
                       </td>
                       <td>
                         <div className="metric-cell">
-                          <span className="cell-title">Custo</span>
-                          <span>
+                          <span className="value-big">
                             {item.custo !== undefined ? `R$ ${item.custo.toFixed(2)}` : "--"}
                           </span>
                         </div>
                       </td>
                       <td>
                         <div className="metric-cell">
-                          <span className="cell-title">Fornecedor</span>
                           {(item.fornecedor || "-")
                             .split(";")
                             .map((f) => f.trim())
@@ -703,146 +656,49 @@ export default function EstoquePage() {
                                 {f}
                               </span>
                             ))}
-                          <div className="inline-actions">
-                            <button
-                              className="btn secondary"
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPopover({ sku: item.sku, type: "fornecedor" });
-                              }}
-                            >
-                              Editar
-                            </button>
-                          </div>
-                          {popover?.sku === item.sku && popover.type === "fornecedor" ? (
-                            <div className="popover" onClick={(e) => e.stopPropagation()}>
-                              <select
-                                className="input input-tight full-width"
-                                multiple
-                                value={getDraft(item).fornecedores.map(String)}
-                                onChange={(e) =>
-                                  updateDraft(item.sku, {
-                                    fornecedores: Array.from(e.target.selectedOptions).map(
-                                      (opt) => Number(opt.value)
-                                    ),
-                                  })
-                                }
-                              >
-                                {fornecedores.map((f) => (
-                                  <option key={f.id} value={f.id}>
-                                    {f.nome}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="inline-actions">
-                                <button
-                                  className="btn secondary"
-                                  type="button"
-                                  onClick={() => setPopover(null)}
-                                >
-                                  Cancelar
-                                </button>
-                                <button
-                                  className="btn"
-                                  type="button"
-                                  onClick={() => handleSaveExtras(item)}
-                                >
-                                  Salvar
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
+                          <button
+                            className="icon-btn"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openModal(item, "fornecedor");
+                            }}
+                            aria-label="Editar fornecedores"
+                          >
+                            ✎
+                          </button>
                         </div>
                       </td>
                       <td>
                         <div className="metric-cell">
-                          <span className="cell-title">Cod Forn</span>
                           <span>{item.codFornecedor || "--"}</span>
-                          <div className="inline-actions">
-                            <button
-                              className="btn secondary"
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPopover({ sku: item.sku, type: "cod" });
-                              }}
-                            >
-                              Editar
-                            </button>
-                          </div>
-                          {popover?.sku === item.sku && popover.type === "cod" ? (
-                            <div className="popover" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                className="input input-tight"
-                                value={getDraft(item).codFornecedor}
-                                onChange={(e) =>
-                                  updateDraft(item.sku, { codFornecedor: e.target.value })
-                                }
-                              />
-                              <div className="inline-actions">
-                                <button
-                                  className="btn secondary"
-                                  type="button"
-                                  onClick={() => setPopover(null)}
-                                >
-                                  Cancelar
-                                </button>
-                                <button
-                                  className="btn"
-                                  type="button"
-                                  onClick={() => handleSaveExtras(item)}
-                                >
-                                  Salvar
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
+                          <button
+                            className="icon-btn"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openModal(item, "cod");
+                            }}
+                            aria-label="Editar codigo fornecedor"
+                          >
+                            ✎
+                          </button>
                         </div>
                       </td>
                       <td>
                         <div className="metric-cell">
-                          <span className="cell-title">Observacoes</span>
                           <span>{item.observacoes || "--"}</span>
-                          <div className="inline-actions">
-                            <button
-                              className="btn secondary"
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPopover({ sku: item.sku, type: "obs" });
-                              }}
-                            >
-                              Editar
-                            </button>
-                          </div>
-                          {popover?.sku === item.sku && popover.type === "obs" ? (
-                            <div className="popover" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                className="input input-tight"
-                                value={getDraft(item).observacoes}
-                                onChange={(e) =>
-                                  updateDraft(item.sku, { observacoes: e.target.value })
-                                }
-                              />
-                              <div className="inline-actions">
-                                <button
-                                  className="btn secondary"
-                                  type="button"
-                                  onClick={() => setPopover(null)}
-                                >
-                                  Cancelar
-                                </button>
-                                <button
-                                  className="btn"
-                                  type="button"
-                                  onClick={() => handleSaveExtras(item)}
-                                >
-                                  Salvar
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
+                          <button
+                            className="icon-btn"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openModal(item, "obs");
+                            }}
+                            aria-label="Editar observacoes"
+                          >
+                            ✎
+                          </button>
                         </div>
                       </td>
                       <td>
@@ -870,6 +726,230 @@ export default function EstoquePage() {
           </div>
         </section>
       </div>
+      {modal ? (
+        <div className="modal" onClick={() => setModal(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                {modal.type === "preco" && "Atualizar preco"}
+                {modal.type === "estoque" && "Movimentar estoque"}
+                {modal.type === "fornecedor" && "Editar fornecedores"}
+                {modal.type === "cod" && "Editar codigo fornecedor"}
+                {modal.type === "obs" && "Editar observacoes"}
+              </h3>
+              <button className="icon-btn" type="button" onClick={() => setModal(null)}>
+                ✕
+              </button>
+            </div>
+
+            {modal.type === "preco" ? (
+              <div className="modal-body">
+                <label className="field">
+                  Novo preco
+                  <input
+                    className="input"
+                    value={draftPreco}
+                    onChange={(e) => setDraftPreco(e.target.value)}
+                  />
+                </label>
+                <div className="inline-actions">
+                  <button className="btn secondary" type="button" onClick={() => setModal(null)}>
+                    Cancelar
+                  </button>
+                  <button className="btn" type="button">
+                    Salvar
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {modal.type === "estoque" ? (
+              <div className="modal-body">
+                <label className="field">
+                  Movimentacao (+/-)
+                  <input
+                    className="input"
+                    value={draftMov.quantidade}
+                    onChange={(e) =>
+                      setDraftMov((prev) => ({ ...prev, quantidade: e.target.value }))
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Novo custo (opcional)
+                  <input
+                    className="input"
+                    value={draftMov.custo}
+                    onChange={(e) => setDraftMov((prev) => ({ ...prev, custo: e.target.value }))}
+                  />
+                </label>
+                <label className="field">
+                  Motivo
+                  <select
+                    className="input"
+                    value={draftMov.motivo}
+                    onChange={(e) =>
+                      setDraftMov((prev) => ({ ...prev, motivo: e.target.value }))
+                    }
+                  >
+                    <option value="1">1 - Reposicao +</option>
+                    <option value="2">2 - Cadastro +</option>
+                    <option value="3">3 - Devolucao +</option>
+                    <option value="4">4 - Troca de Produto + ou -</option>
+                    <option value="5">5 - Conferencia + ou -</option>
+                    <option value="6">6 - Fracionamento -</option>
+                    <option value="7">7 - Uso interno -</option>
+                    <option value="8">8 - Marketing -</option>
+                    <option value="9">9 - Usado na Fabricacao -</option>
+                  </select>
+                </label>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={keepMotivo}
+                    onChange={(e) => setKeepMotivo(e.target.checked)}
+                  />
+                  Manter motivo para proximas movimentacoes
+                </label>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={keepCusto}
+                    onChange={(e) => setKeepCusto(e.target.checked)}
+                  />
+                  Manter custo para proximas movimentacoes
+                </label>
+                <div className="inline-actions">
+                  <button className="btn secondary" type="button" onClick={() => setModal(null)}>
+                    Cancelar
+                  </button>
+                  <button className="btn" type="button">
+                    Salvar
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {modal.type === "fornecedor" ? (
+              <div className="modal-body">
+                <select
+                  className="input full-width"
+                  multiple
+                  value={getDraft(
+                    items.find((it) => it.sku === modal.sku) || {
+                      sku: modal.sku,
+                      nome: "",
+                      fornecedor: "",
+                      codFornecedor: "",
+                      ativo: true,
+                      foraDeLinha: false,
+                    }
+                  ).fornecedores.map(String)}
+                  onChange={(e) =>
+                    updateDraft(modal.sku, {
+                      fornecedores: Array.from(e.target.selectedOptions).map((opt) =>
+                        Number(opt.value)
+                      ),
+                    })
+                  }
+                >
+                  {fornecedores.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nome}
+                    </option>
+                  ))}
+                </select>
+                <div className="inline-actions">
+                  <button className="btn secondary" type="button" onClick={() => setModal(null)}>
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => {
+                      const item = items.find((it) => it.sku === modal.sku);
+                      if (item) handleSaveExtras(item);
+                      setModal(null);
+                    }}
+                  >
+                    Salvar
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {modal.type === "cod" ? (
+              <div className="modal-body">
+                <input
+                  className="input"
+                  value={getDraft(
+                    items.find((it) => it.sku === modal.sku) || {
+                      sku: modal.sku,
+                      nome: "",
+                      fornecedor: "",
+                      codFornecedor: "",
+                      ativo: true,
+                      foraDeLinha: false,
+                    }
+                  ).codFornecedor}
+                  onChange={(e) => updateDraft(modal.sku, { codFornecedor: e.target.value })}
+                />
+                <div className="inline-actions">
+                  <button className="btn secondary" type="button" onClick={() => setModal(null)}>
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => {
+                      const item = items.find((it) => it.sku === modal.sku);
+                      if (item) handleSaveExtras(item);
+                      setModal(null);
+                    }}
+                  >
+                    Salvar
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {modal.type === "obs" ? (
+              <div className="modal-body">
+                <input
+                  className="input"
+                  value={getDraft(
+                    items.find((it) => it.sku === modal.sku) || {
+                      sku: modal.sku,
+                      nome: "",
+                      fornecedor: "",
+                      codFornecedor: "",
+                      ativo: true,
+                      foraDeLinha: false,
+                    }
+                  ).observacoes}
+                  onChange={(e) => updateDraft(modal.sku, { observacoes: e.target.value })}
+                />
+                <div className="inline-actions">
+                  <button className="btn secondary" type="button" onClick={() => setModal(null)}>
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => {
+                      const item = items.find((it) => it.sku === modal.sku);
+                      if (item) handleSaveExtras(item);
+                      setModal(null);
+                    }}
+                  >
+                    Salvar
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
