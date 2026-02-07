@@ -53,6 +53,7 @@ export default function EstoquePage() {
   const [items, setItems] = useState<EstoqueItem[]>([]);
   const [loadingSku, setLoadingSku] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [syncing, setSyncing] = useState(false);
@@ -122,6 +123,9 @@ export default function EstoquePage() {
         .sort((a: EstoqueItem, b: EstoqueItem) => a.sku.localeCompare(b.sku));
 
       setItems(baseItems);
+      const total = Number(json.total || baseItems.length);
+      const pages = Math.max(1, Math.ceil(total / 100));
+      setTotalPages(pages);
 
       const skus = baseItems.map((it) => it.sku).filter(Boolean);
       if (skus.length) {
@@ -404,15 +408,13 @@ export default function EstoquePage() {
   }
 
   return (
-    <main className="page">
+    <main className="page compact">
       <div className="shell">
         <nav className="nav">
           <div className="brand">
-            <div className="brand-badge" />
-            <div className="brand-text">
-              <span>Estoque</span>
-              <span>Painel operacional</span>
-            </div>
+            <a className="btn secondary" href="/">
+              Voltar
+            </a>
           </div>
           <div className="actions">
             <span className="pill">{session.user.email}</span>
@@ -424,24 +426,6 @@ export default function EstoquePage() {
             </button>
           </div>
         </nav>
-
-        <section className="hero">
-          <div>
-            <h1>Modulo de estoque</h1>
-            <p>
-              Aqui vamos montar a tabela estilo planilha e o fluxo de
-              movimentacao individual por SKU.
-            </p>
-          </div>
-          <div className="hero-card">
-            <h3>Proximos passos</h3>
-            <ul>
-              <li>Busca no catalogo central + extras locais.</li>
-              <li>Atualizacao live de estoque/custo/preco.</li>
-              <li>Edicao inline de fornecedor e observacoes.</li>
-            </ul>
-          </div>
-        </section>
 
         <section className="panel">
           <div className="panel-header">
@@ -469,14 +453,19 @@ export default function EstoquePage() {
 
           {error ? <div className="error">{error}</div> : null}
 
-          <div className="filters">
+          <form
+            className="filters"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleBuscar();
+            }}
+          >
             <label className="field">
               SKU
               <input
                 className="input"
                 value={filters.sku}
                 onChange={(e) => setFilters((prev) => ({ ...prev, sku: e.target.value }))}
-                placeholder="CH81001_AZ09"
               />
             </label>
             <label className="field">
@@ -485,7 +474,6 @@ export default function EstoquePage() {
                 className="input"
                 value={filters.nome}
                 onChange={(e) => setFilters((prev) => ({ ...prev, nome: e.target.value }))}
-                placeholder="Camisa UV"
               />
             </label>
             <label className="field">
@@ -494,7 +482,6 @@ export default function EstoquePage() {
                 className="input"
                 value={filters.fornecedor}
                 onChange={(e) => setFilters((prev) => ({ ...prev, fornecedor: e.target.value }))}
-                placeholder="Extreme UV"
               />
             </label>
             <label className="field">
@@ -505,10 +492,9 @@ export default function EstoquePage() {
                 onChange={(e) =>
                   setFilters((prev) => ({ ...prev, codFornecedor: e.target.value }))
                 }
-                placeholder="EX-UV-009"
               />
             </label>
-          </div>
+          </form>
         </section>
 
         <section className="panel">
@@ -518,13 +504,13 @@ export default function EstoquePage() {
               <p>{visibleItems.length} itens encontrados</p>
             </div>
             <div className="panel-actions">
-              <span className="pill">Modo leitura</span>
               <div className="panel-actions">
                 <button
                   className="btn secondary"
                   type="button"
                   onClick={() => {
                     const next = Math.max(1, page - 1);
+                    if (next === page) return;
                     setPage(next);
                     void loadCatalogo(next);
                   }}
@@ -532,16 +518,19 @@ export default function EstoquePage() {
                 >
                   Pagina anterior
                 </button>
-                <span className="pill">Pagina {page}</span>
+                <span className="pill">
+                  Pagina {page} / {totalPages}
+                </span>
                 <button
                   className="btn secondary"
                   type="button"
                   onClick={() => {
                     const next = page + 1;
+                    if (next > totalPages) return;
                     setPage(next);
                     void loadCatalogo(next);
                   }}
-                  disabled={busy}
+                  disabled={busy || page >= totalPages}
                 >
                   Proxima pagina
                 </button>
