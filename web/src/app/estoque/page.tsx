@@ -551,6 +551,17 @@ export default function EstoquePage() {
 
           <div className="table-wrap">
             <table className="sheet">
+              <colgroup>
+                <col style={{ width: "140px" }} />
+                <col style={{ width: "240px" }} />
+                <col style={{ width: "140px" }} />
+                <col style={{ width: "160px" }} />
+                <col style={{ width: "140px" }} />
+                <col style={{ width: "220px" }} />
+                <col style={{ width: "140px" }} />
+                <col style={{ width: "180px" }} />
+                <col style={{ width: "140px" }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Imagem / SKU</th>
@@ -585,12 +596,17 @@ export default function EstoquePage() {
                     >
                       <td>
                         <div className="sku-stack">
-                          <div className="img-cell">
+                          <div className="img-cell img-hover">
                             {item.imagem ? (
                               <img src={item.imagem} alt={item.nome} />
                             ) : (
                               <div className="img-placeholder" />
                             )}
+                            {item.imagem ? (
+                              <div className="img-zoom">
+                                <img src={item.imagem} alt={item.nome} />
+                              </div>
+                            ) : null}
                           </div>
                           <span>{item.sku}</span>
                         </div>
