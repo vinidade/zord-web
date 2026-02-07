@@ -528,6 +528,14 @@ export default function EstoquePage() {
               <a className="btn secondary" href="/fornecedores">
                 Lista de fornecedores
               </a>
+              <button
+                className="btn secondary"
+                type="button"
+                onClick={handleSync}
+                disabled={syncing}
+              >
+                {syncing ? "Sincronizando..." : "Sincronizar catalogo"}
+              </button>
             </div>
           </div>
 
@@ -612,14 +620,6 @@ export default function EstoquePage() {
             </div>
             <div className="panel-actions">
               <div className="panel-actions">
-                <button
-                  className="btn secondary"
-                  type="button"
-                  onClick={handleSync}
-                  disabled={syncing}
-                >
-                  {syncing ? "Sincronizando..." : "Sincronizar catalogo"}
-                </button>
                 <button
                   className="btn secondary"
                   type="button"
