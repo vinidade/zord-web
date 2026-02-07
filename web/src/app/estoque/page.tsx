@@ -371,7 +371,10 @@ export default function EstoquePage() {
     }
   };
 
-  const openModal = (item: EstoqueItem, type: typeof modal extends { type: infer T } ? T : never) => {
+  const openModal = (
+    item: EstoqueItem,
+    type: "preco" | "estoque" | "fornecedor" | "cod" | "obs"
+  ) => {
     setModal({ sku: item.sku, type });
     if (type === "preco") {
       setDraftPreco(item.preco !== undefined ? String(item.preco.toFixed(2)) : "");
