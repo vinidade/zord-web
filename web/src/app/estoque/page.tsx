@@ -552,15 +552,13 @@ export default function EstoquePage() {
           <div className="table-wrap">
             <table className="sheet">
               <colgroup>
-                <col style={{ width: "140px" }} />
-                <col style={{ width: "240px" }} />
-                <col style={{ width: "140px" }} />
-                <col style={{ width: "160px" }} />
-                <col style={{ width: "140px" }} />
-                <col style={{ width: "220px" }} />
-                <col style={{ width: "140px" }} />
+                <col style={{ width: "150px" }} />
+                <col style={{ width: "280px" }} />
+                <col style={{ width: "170px" }} />
                 <col style={{ width: "180px" }} />
-                <col style={{ width: "140px" }} />
+                <col style={{ width: "170px" }} />
+                <col style={{ width: "260px" }} />
+                <col style={{ width: "160px" }} />
               </colgroup>
               <thead>
                 <tr>
@@ -571,14 +569,12 @@ export default function EstoquePage() {
                   <th>Custo</th>
                   <th>Fornecedor</th>
                   <th>Cod Forn</th>
-                  <th>Observacoes</th>
-                  <th>Fora de linha</th>
                 </tr>
               </thead>
               <tbody>
                 {visibleItems.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>
+                    <td colSpan={7}>
                       <div className="empty-state">
                         Nenhum resultado. Preencha a busca e clique em Buscar.
                       </div>
@@ -614,6 +610,37 @@ export default function EstoquePage() {
                       <td>
                         <div className="info-cell">
                           <strong>{item.nome}</strong>
+                          <div className="inline-row">
+                            <span className="obs-text">
+                              <strong>OBS:</strong> {item.observacoes || "-"}
+                            </span>
+                            <button
+                              className="icon-btn"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openModal(item, "obs");
+                              }}
+                              aria-label="Editar observacoes"
+                            >
+                              ✎
+                            </button>
+                          </div>
+                          <label className="checkbox subtle">
+                            <input
+                              type="checkbox"
+                              checked={getDraft(item).foraDeLinha}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                updateDraft(item.sku, { foraDeLinha: e.target.checked });
+                                void handleSaveExtras({
+                                  ...item,
+                                  foraDeLinha: e.target.checked,
+                                });
+                              }}
+                            />
+                            Fora de linha
+                          </label>
                           {!item.ativo ? <span>Desativado</span> : null}
                         </div>
                       </td>
@@ -623,7 +650,7 @@ export default function EstoquePage() {
                             {item.preco !== undefined ? `R$ ${item.preco.toFixed(2)}` : "--"}
                           </span>
                           <button
-                            className="icon-btn"
+                            className="icon-btn inline-icon"
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -645,7 +672,7 @@ export default function EstoquePage() {
                           </span>
                           {loadingSku.has(item.sku) ? <span>Atualizando...</span> : null}
                           <button
-                            className="icon-btn"
+                            className="icon-btn inline-icon"
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -676,7 +703,7 @@ export default function EstoquePage() {
                               </span>
                             ))}
                           <button
-                            className="icon-btn"
+                            className="icon-btn inline-icon"
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -692,7 +719,7 @@ export default function EstoquePage() {
                         <div className="metric-cell">
                           <span>{item.codFornecedor || "--"}</span>
                           <button
-                            className="icon-btn"
+                            className="icon-btn inline-icon"
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -703,39 +730,6 @@ export default function EstoquePage() {
                             ✎
                           </button>
                         </div>
-                      </td>
-                      <td>
-                        <div className="metric-cell">
-                          <span>{item.observacoes || "--"}</span>
-                          <button
-                            className="icon-btn"
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openModal(item, "obs");
-                            }}
-                            aria-label="Editar observacoes"
-                          >
-                            ✎
-                          </button>
-                        </div>
-                      </td>
-                      <td>
-                        <label className="checkbox">
-                          <input
-                            type="checkbox"
-                            checked={getDraft(item).foraDeLinha}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              updateDraft(item.sku, { foraDeLinha: e.target.checked });
-                              void handleSaveExtras({
-                                ...item,
-                                foraDeLinha: e.target.checked,
-                              });
-                            }}
-                          />
-                          Fora de linha
-                        </label>
                       </td>
                     </tr>
                   ))

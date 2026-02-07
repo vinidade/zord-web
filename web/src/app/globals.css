@@ -323,7 +323,7 @@ main {
 .sheet {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1280px;
+  min-width: 1150px;
   background: var(--surface-2);
   table-layout: fixed;
 }
@@ -421,6 +421,23 @@ main {
   align-items: start;
 }
 
+.inline-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.obs-text {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.checkbox.subtle {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
 .sku-stack {
   display: grid;
   gap: 6px;
@@ -513,6 +530,10 @@ main {
   background: var(--surface-2);
 }
 
+.inline-icon {
+  margin-left: 4px;
+}
+
 .img-hover {
   position: relative;
 }
@@ -584,6 +605,19 @@ main {
     flex-direction: column;
     align-items: stretch;
   }
+
+  .sheet {
+    min-width: 980px;
+  }
+
+  .img-cell {
+    width: 68px;
+    height: 68px;
+  }
+
+  .value-big {
+    font-size: 16px;
+  }
 }
 
 @media (max-width: 720px) {
@@ -594,5 +628,13 @@ main {
   .actions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .sheet {
+    min-width: 900px;
+  }
+
+  .table-wrap {
+    border-radius: 12px;
   }
 }
